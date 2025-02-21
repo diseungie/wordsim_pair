@@ -1,0 +1,4 @@
+.DS_Store
+.idea/
+venv/
+models/sw_200d_2w/ja-gensim.200d.2w.data.sw.model
