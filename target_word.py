@@ -1,8 +1,9 @@
 from gensim.models import Word2Vec
 import heapq
+import pandas as pd
 from tqdm import tqdm
 
-# Word2Vecモデルのラウトを設定
+# Word2Vecモデルのパスを設定
 model_path = 'models/sw_200d_2w/ja-gensim.200d.2w.data.sw.model'
 
 print("Loading Word2Vec model...")  # Inform user about loading process
@@ -10,14 +11,12 @@ model = Word2Vec.load(model_path)
 print("Model loaded successfully!\n")
 
 
-# 単語類似度の数値(similarity_targets)と各々の数値に対する単語の回答数(top_n)を設定
-def find_closest_words_full_vocab(target_word, similarity_targets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], top_n=3):
+def find_closest_words_full_vocab(target_word, target_scores=[0.1525, 0.2860, 0.4195], top_n=15):
     try:
         print(f"Processing similarity scores for '{target_word}'...\n")
 
         # Get all words in the vocabulary
         vocab = model.wv.index_to_key
-        total_words = len(vocab)
 
         # Compute similarity scores for all words in the vocabulary with a progress bar
         similarities = []
@@ -34,10 +33,10 @@ def find_closest_words_full_vocab(target_word, similarity_targets=[0.1, 0.2, 0.3
 
         # Find the closest words for each target similarity
         closest_words = {}
-        for sim_target in similarity_targets:
+        for target_score in target_scores:
             # Use a min-heap to find the closest `top_n` words to the target similarity
-            closest = heapq.nsmallest(top_n, similarities, key=lambda x: abs(x[1] - sim_target))
-            closest_words[sim_target] = closest
+            closest = heapq.nsmallest(top_n, similarities, key=lambda x: abs(x[1] - target_score))
+            closest_words[target_score] = closest
 
         print("Processing completed!\n")
         return closest_words
@@ -47,11 +46,35 @@ def find_closest_words_full_vocab(target_word, similarity_targets=[0.1, 0.2, 0.3
         return None
 
 
+def save_results_to_excel(target_word, results):
+    file_name = f"result_{target_word}.xlsx"
+    writer = pd.ExcelWriter(file_name, engine='openpyxl')
+
+    data = []
+
+    for sim_target, words in results.items():
+        data.append([f"ターゲットスコア：{sim_target}", "", ""])  # Add header row
+        data.append(["単語1", "単語2", "単語類似度"])  # Add column labels
+
+        for word, score in words:
+            data.append([target_word, word, score])  # Add word similarity data
+
+        data.append(["", "", ""])  # Add an empty row for spacing
+
+    # Convert to DataFrame and save
+    df = pd.DataFrame(data)
+    df.to_excel(writer, index=False, header=False, sheet_name="Results")
+
+    writer.close()
+    print(f"Results saved to {file_name}")
+
+
 # ターゲットの単語を入力
-target_word = "りんご"
+target_word = "ビール"
 results = find_closest_words_full_vocab(target_word)
 
 if results:
+    save_results_to_excel(target_word, results)
     for sim_target, words in results.items():
         print(f"Similarity {sim_target}:")
         for word, score in words:
